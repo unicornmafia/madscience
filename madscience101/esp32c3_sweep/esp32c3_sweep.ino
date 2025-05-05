@@ -11,13 +11,6 @@ int pos = 0;    // variable to store the servo position
 int servoPin = 1;
 
 void setup() {
-	// servo setup stuff
-	ESP32PWM::allocateTimer(0);
-	ESP32PWM::allocateTimer(1);
-	ESP32PWM::allocateTimer(2);
-	ESP32PWM::allocateTimer(3);
-	myservo.setPeriodHertz(50);    // standard 50 hz servo
-
   // define pin, and set min and max.  1000=0, 2000=180 
 	myservo.attach(SERVO_PIN_X, 1000, 2000); 
 }
