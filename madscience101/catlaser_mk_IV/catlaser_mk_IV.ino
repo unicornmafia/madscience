@@ -216,10 +216,9 @@ void setup() {
 void loop() {
   loopServos();
 
-  /* 
-  disabling this for now
+
   loopBlink();
   laserBlink();
   delay(1000);
-  */
+  
 }

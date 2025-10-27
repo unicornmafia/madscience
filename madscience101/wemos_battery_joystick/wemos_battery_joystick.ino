@@ -1,20 +1,15 @@
 /*
- * This ESP32 code is created by esp32io.com
- *
- * This ESP32 code is released in the public domain
- *
- * For more detail (instruction and wiring diagram), visit https://esp32io.com/tutorials/esp32-joystick
- */
-
-#include <ezButton.h>
+  Thomas Marsh
+*/
 #include <esp_now.h>
 #include <WiFi.h>
 
 // REPLACE WITH YOUR RECEIVER MAC Address
-//e4:b0:63:41:e9:a0 (c6)
-//uint8_t broadcastAddress[] = {0xE4, 0xB0, 0x63, 0x41, 0xE9, 0xA0};
-//28:37:2f:74:19:38 (tower)
-uint8_t broadcastAddress[] = {0x28, 0x37, 0x2F, 0x74, 0x19, 0x38};
+// char mac[]="8c:d0:b2:a9:38:31";
+// uint8_t broadcastAddress[] = {0x8C, 0xD0, 0xB2, 0xA9, 0x38, 0x31};
+
+char mac[]="20:6e:f1:6d:1b:14";
+uint8_t broadcastAddress[] = {0x20, 0x6e, 0xf1, 0x6d, 0x1b, 0x14};
 
 // Structure example to send data
 // Must match the receiver structure
@@ -27,39 +22,53 @@ typedef struct struct_message {
 // Create a struct_message called myData
 struct_message myData;
 
+unsigned long previousMillis = 0;  // will store last time LED was updated
+
+// constants won't change:
+const long interval = 1000;  // interval at which to blink (milliseconds)
+unsigned long messagesSent = 0;
+unsigned long messagesSentInLastSecond = 0;
+
 esp_now_peer_info_t peerInfo;
-
-
-
+bool bSentCenter = false;
 
 #define VRX_PIN  39 // ESP32 pin GPIO39 (ADC3) connected to VRX pin
 #define VRY_PIN  36 // ESP32 pin GPIO36 (ADC0) connected to VRY pin
 #define SW_PIN  17
 #define LED_PIN  16
 
-ezButton button(SW_PIN);
+//ezButton button(SW_PIN);
 
 int valueX = 0; // to store the X-axis value
 int valueY = 0; // to store the Y-axis value
 int bValue = 0; // To store value of the button
 
 
+
 // callback when data is sent
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("\r\nLast Packet Send Status:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+
+void OnDataSent(const esp_now_send_info_t *tx_info, esp_now_send_status_t status) {
+  //Serial.print("\r\nLast Packet Send Status:\t");
+  //Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  messagesSent++;
+  messagesSentInLastSecond++;
 }
-
+ 
 void setup() {
-  Serial.begin(9600);
+  // Init Serial Monitor
+  Serial.begin(115200);
+
+  // define LED pin
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);  // turn the LED on (HIGH is the voltage level)
 
-  // Set the ADC attenuation to 11 dB (up to ~3.3V input)
+  // define button for joystick switch 
+  pinMode(SW_PIN, INPUT_PULLUP);  // pullup because this is default high 
+                                  // pushing the button makes it go low
+
+  // set analog read attenuation
   analogSetAttenuation(ADC_11db);
-  button.setDebounceTime(50); // set debounce time to 50 milliseconds
 
-    // Set device as a Wi-Fi Station
+  // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
 
   // Init ESP-NOW
@@ -82,71 +91,49 @@ void setup() {
     Serial.println("Failed to add peer");
     return;
   }
-
 }
-
-void send_data(int x, int y, bool button){
-  // ignore if in deadband
-  // if ((x>1800) && (x<2200) &&
-  //     (y>1800) && (y<2200) && 
-  //     (!button))
-  // {
-  //   return;
-  // }
-
-
-  // Set values to send
-  myData.x = x;
-  myData.y = y;
-  myData.button = button;
-  
-  // Send message via ESP-NOW
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
-   
-  if (result == ESP_OK) {
-    Serial.println("Sent with success");
-  }
-  else {
-    Serial.println("Error sending the data");
-  }
-}
-
+ 
 void loop() {
-  button.loop(); // MUST call the loop() function first
 
-  // read X and Y analog values
-  valueX = analogRead(VRX_PIN);
+  // get values from hardware
+  bValue = !digitalRead(SW_PIN);  // we are using ! because by default when pressed, it goes low.
+  valueX = analogRead(VRX_PIN); 
   valueY = analogRead(VRY_PIN);
 
-  // Read the button value
-  bValue = button.getState();
-
-  if (button.isPressed()) {
-    Serial.println("The button is pressed");
-    // TODO do something here
+  // check to see if there's "real" data to send 
+  //     some randomness is to be expected.  we are filtering it out
+  if (bValue || valueX > 1900 || valueX < 1800
+      || valueY > 1900 || valueY < 1800)
+  {
+    // Set values to send
+    myData.x = valueX; 
+    myData.y = valueY;   
+    myData.button = bValue;
+    // Send message via ESP-NOW
+    bSentCenter=false;
+    esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+  } else if (!bSentCenter) {
+    // Set values to send
+    myData.x = 1850; 
+    myData.y = 1850;   
+    myData.button = 0;
+    // Send message via ESP-NOW
+    bSentCenter=true;
+    esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+    Serial.println("Sending Center");
   }
+  
+  unsigned long currentMillis = millis();
 
-  if (button.isReleased()) {
-    Serial.println("The button is released");
-    // TODO do something here
+  if (currentMillis - previousMillis >= interval) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
+    Serial.print("Messages/Second Sent: ");
+    Serial.println(messagesSentInLastSecond);
+    
+    messagesSentInLastSecond = 0;
+    
   }
-
-  // print data to Serial Monitor on Arduino IDE
-  Serial.print("x = ");
-  Serial.print(valueX);
-  Serial.print(", y = ");
-  Serial.println(valueY);
-  Serial.print(" : button = ");
-  Serial.println(bValue);
-  if (!bValue){
-    digitalWrite(LED_PIN, HIGH);
-  } else {
-    digitalWrite(LED_PIN, LOW);
-  }
-  //digitalWrite(LED_PIN, HIGH);  // turn the LED on (HIGH is the voltage level)
-  //delay(100);
-  //digitalWrite(LED_PIN, LOW);  // turn the LED on (HIGH is the voltage level)
-  delay(1);
-  send_data(valueX, valueY, !bValue);
+  delay(10);
 
 }
