@@ -1,8 +1,12 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
+
+#define BUTTON_PIN 17 // GPIO17 pin connected to button
+
+// Matrix MAC:   48:27:E2:16:CF:24
 //  RECEIVER MAC Address
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t matrixAddress[] = {0x48, 0x27, 0xE2, 0x16, 0xCF, 0x24};
 
 int button_state = 1;
 
@@ -20,7 +24,8 @@ esp_now_peer_info_t peerInfo;
 void setup() {
   // Init Serial Monitor
   Serial.begin(115200);
- 
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
 
@@ -31,7 +36,7 @@ void setup() {
   }
 
   // register peer MAC Address
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  memcpy(peerInfo.peer_addr, matrixAddress, 6);
   peerInfo.channel = 0;  
   peerInfo.encrypt = false;
   
@@ -44,16 +49,16 @@ void setup() {
  
 void loop() {
   // just send 0,1,0,1... etc
-  myData.button_state = !myData.button_state
+  myData.button_state = !digitalRead(BUTTON_PIN);
   
   // Send message via ESP-NOW
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+  esp_err_t result = esp_now_send(matrixAddress, (uint8_t *) &myData, sizeof(myData));
    
-  if (result == ESP_OK) {
-    Serial.println("Sent with success");
-  }
-  else {
-    Serial.println("Error sending the data");
-  }
-  delay(1000);
+  // if (result == ESP_OK) {
+  //   Serial.println("Sent with success");
+  // }
+  // else {
+  //   Serial.println("Error sending the data");
+  // }
+  delay(1);
 }
