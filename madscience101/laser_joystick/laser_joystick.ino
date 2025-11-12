@@ -296,13 +296,11 @@ void setup() {
 }
 
 void loop() {
-  //loopServos();
+  loopServos();
   loopMac();
-  delay(1);
-  /* 
-  disabling this for now
+ 
   loopBlink();
   laserBlink();
   delay(1000);
-  */
+  
 }
