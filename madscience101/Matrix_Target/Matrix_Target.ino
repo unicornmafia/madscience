@@ -9,9 +9,15 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <WiFi.h>
-#include "pitches.h"
 #include <Adafruit_Protomatter.h>
+#include "pitches.h"
+#include "LittleFS.h"
+#include "badge.h"
+
 #define BUZZZER_PIN  11 // ESP32 pin GPIO18 connected to piezo buzzer
+
+
+
 
 
 uint8_t rgbPins[]  = {42, 41, 40, 38, 39, 37};
@@ -56,6 +62,10 @@ typedef struct struct_message {
 struct_message myData;
 
 
+void loadBMP(){
+  matrix.drawRGBBitmap(3,0,(uint16_t *)mad_science_badge_transp_59x64_map,59,64);
+  matrix.show(); // Copy data to matrix buffers
+}
  
 void play(int numReps) {
   uint8_t colors[3][3] = {{0,0,255}, {0,255,0}, {255,0,0}}; 
@@ -78,9 +88,10 @@ void play(int numReps) {
       noTone(BUZZZER_PIN);
       bPlaying=false;
     }
-    
+    matrix.fillScreen(0);
+    loadBMP();
   }
-  matrix.fillScreen(0);
+  
   matrix.show(); // Copy data to matrix buffers
 
 }
@@ -120,6 +131,57 @@ void readMacAddress(){
 }
 
 
+
+
+void loadBMP2(){
+  File myFile = LittleFS.open("/badge.bmp", "r");
+  if(!myFile){
+   Serial.println("Failed to open file for reading");
+   return;
+  }
+
+  
+  // 1. Get the file size
+    int fileSize = myFile.size(); 
+    Serial.print("File size: ");
+    Serial.print(fileSize);
+    Serial.println(" bytes");
+
+    // 2. Dynamically allocate memory for the buffer
+    // It is critical to ensure you have enough SRAM memory for this on your specific Arduino board.
+    byte *buffer = (byte*) malloc(fileSize);
+
+    if (buffer == nullptr) {
+      Serial.println("Memory allocation failed!");
+      myFile.close();
+      return;
+    }
+
+    // 3. Read the entire file into the buffer
+    // The `read()` method returns the number of bytes read
+    size_t bytesRead = myFile.read(buffer, fileSize); 
+    if (bytesRead == fileSize) {
+      Serial.println("Successfully read all bytes into the array.");
+      // Now the 'buffer' array contains the file data.
+      // You can process the data here.
+
+      // Example: Print the first 10 bytes (or fewer if file is smaller)
+      Serial.print("First 10 bytes: ");
+      for (size_t i = 0; i < (fileSize > 10 ? 10 : fileSize); i++) {
+        Serial.print(buffer[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println();
+
+    } else {
+      Serial.print("Error reading file, only read ");
+      Serial.print(bytesRead);
+      Serial.println(" bytes.");
+    }
+  
+}
+
+
 void setup() {
   // Initialize Serial Monitor
   Serial.begin(115200);
@@ -130,6 +192,11 @@ void setup() {
   // Init ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  if(!LittleFS.begin()){
+    Serial.println("An Error has occurred while mounting LittleFS");
     return;
   }
   
@@ -149,8 +216,9 @@ void setup() {
   readMacAddress();
   Serial.println("Starting Matrix");
   play(3);
-  
+  loadBMP();
 }
+
 
 
 void loop() {
