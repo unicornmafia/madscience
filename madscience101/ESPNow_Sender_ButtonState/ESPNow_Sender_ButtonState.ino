@@ -29,8 +29,6 @@ void setup() {
 
   // register peer MAC Address
   memcpy(peerInfo.peer_addr, matrixAddress, 6);
-  peerInfo.channel = 0;  
-  peerInfo.encrypt = false;
   
   // Add peer        
   if (esp_now_add_peer(&peerInfo) != ESP_OK){

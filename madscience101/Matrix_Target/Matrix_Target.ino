@@ -10,7 +10,25 @@
 #include <esp_wifi.h>
 #include <WiFi.h>
 #include "pitches.h"
+#include <Adafruit_Protomatter.h>
 #define BUZZZER_PIN  11 // ESP32 pin GPIO18 connected to piezo buzzer
+
+
+uint8_t rgbPins[]  = {42, 41, 40, 38, 39, 37};
+uint8_t addrPins[] = {45, 36, 48, 35, 21};
+uint8_t clockPin   = 2;
+uint8_t latchPin   = 47;
+uint8_t oePin      = 14;
+
+
+Adafruit_Protomatter matrix(
+  64,          // Width of matrix (or matrix chain) in pixels
+  4,           // Bit depth, 1-6
+  1, rgbPins,  // # of matrix chains, array of 6 RGB pins for each
+  5, addrPins, // # of address pins (height is inferred), array of pins
+  clockPin, latchPin, oePin, // Other matrix control pins
+  false);      // No double-buffering here (see "doublebuffer" example)
+
 
 int melody[] = {
   NOTE_C4, NOTE_G3
@@ -40,10 +58,16 @@ struct_message myData;
 
  
 void play(int numReps) {
-  
+  uint8_t colors[3][3] = {{0,0,255}, {0,255,0}, {255,0,0}}; 
+  static int color = 0;
+
   size_t numNotes = sizeof(melody) / sizeof(melody[0]);
   for (int i=0;i<numReps;i++){
-
+    color = i % 3;
+    for (int r=0;r<50;r++){
+      matrix.drawCircle(32, 32, r, matrix.color565(colors[color][0], colors[color][1], colors[color][2]));
+      matrix.show(); // Copy data to matrix buffers
+    }
     
     for (int thisNote = 0; thisNote < numNotes; thisNote++) {
       int noteDuration = 1000 / noteDurations[thisNote];
@@ -54,8 +78,13 @@ void play(int numReps) {
       noTone(BUZZZER_PIN);
       bPlaying=false;
     }
+    
   }
+  matrix.fillScreen(0);
+  matrix.show(); // Copy data to matrix buffers
+
 }
+
 
 // callback function that will be executed when data is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
@@ -74,7 +103,7 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   messagesReceivedInLastSecond ++;
   if (myData.button == 1){
     bPlaying=true;
-    play(5);
+    play(3);
   }
 }
  
@@ -104,13 +133,23 @@ void setup() {
     return;
   }
   
+  // Initialize matrix...
+  ProtomatterStatus status = matrix.begin();
+  Serial.print("Protomatter begin() status: ");
+  Serial.println((int)status);
+  if(status != PROTOMATTER_OK) {
+    // DO NOT CONTINUE if matrix setup encountered an error.
+    for(;;);
+  }
+
   // Once ESPNow is successfully Init, we will register for recv CB to
   // get recv packer info
   esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv));
-  delay(2000);
+  delay(1000);
   readMacAddress();
   Serial.println("Starting Matrix");
-  play(5);
+  play(3);
+  
 }
 
 
