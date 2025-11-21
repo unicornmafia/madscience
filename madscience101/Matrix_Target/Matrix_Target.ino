@@ -26,6 +26,8 @@ uint8_t clockPin   = 2;
 uint8_t latchPin   = 47;
 uint8_t oePin      = 14;
 
+uint8_t inv_mad_science_badge_transp_59x64_map[sizeof(mad_science_badge_transp_59x64_map)];
+
 
 Adafruit_Protomatter matrix(
   64,          // Width of matrix (or matrix chain) in pixels
@@ -41,7 +43,7 @@ int melody[] = {
 };
 
 int noteDurations[] = {
-  8, 8
+  16, 16
 };
 
 unsigned long previousMillis = 0;  // will store last time LED was updated
@@ -63,11 +65,45 @@ struct_message myData;
 
 
 void loadBMP(){
+  matrix.fillScreen(0);
   matrix.drawRGBBitmap(3,0,(uint16_t *)mad_science_badge_transp_59x64_map,59,64);
+  matrix.show(); // Copy data to matrix buffers
+}
+
+void loadInvBMP(){
+  matrix.fillScreen(((uint16_t *)inv_mad_science_badge_transp_59x64_map)[0]);
+  matrix.drawRGBBitmap(3,0,(uint16_t *)inv_mad_science_badge_transp_59x64_map,59,64);
   matrix.show(); // Copy data to matrix buffers
 }
  
 void play(int numReps) {
+  uint8_t colors[3][3] = {{0,0,255}, {0,255,0}, {255,0,0}}; 
+  static int color = 0;
+
+  size_t numNotes = sizeof(melody) / sizeof(melody[0]);
+  for (int i=0;i<numReps;i++){
+    matrix.fillScreen(0xffff);
+    loadInvBMP();
+    for (int thisNote = 0; thisNote < numNotes; thisNote++) {
+      int noteDuration = 1000 / noteDurations[thisNote];
+      tone(BUZZZER_PIN, melody[thisNote], noteDuration);
+
+      int pauseBetweenNotes = noteDuration * 1.30;
+      delay(pauseBetweenNotes);
+      noTone(BUZZZER_PIN);
+      bPlaying=false;
+    }
+    loadBMP();
+    delay(100);
+  }
+  
+   // Copy data to matrix buffers
+
+}
+
+
+
+void play2(int numReps) {
   uint8_t colors[3][3] = {{0,0,255}, {0,255,0}, {255,0,0}}; 
   static int color = 0;
 
@@ -95,7 +131,6 @@ void play(int numReps) {
   matrix.show(); // Copy data to matrix buffers
 
 }
-
 
 // callback function that will be executed when data is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
@@ -182,9 +217,18 @@ void loadBMP2(){
 }
 
 
+void makeInverseMadScientist(){
+  int numBytes = sizeof(mad_science_badge_transp_59x64_map);
+  for (int i=0; i<numBytes; i++){
+    inv_mad_science_badge_transp_59x64_map[i] = ~mad_science_badge_transp_59x64_map[i];
+  }
+}
+
 void setup() {
   // Initialize Serial Monitor
   Serial.begin(115200);
+  
+  makeInverseMadScientist();
   
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
