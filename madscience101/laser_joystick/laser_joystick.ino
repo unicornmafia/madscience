@@ -36,8 +36,10 @@ struct_message myData;
 // callback function that will be executed when data is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&myData, incomingData, sizeof(myData));
-  servoX.writeMicroseconds(myData.x);
-  servoY.writeMicroseconds(myData.y);  
+  int x = map(myData.x, 0, 4000, 180, 0);
+  int y = map(myData.y, 0, 4000, 0, 180);
+  servoX.write(x);
+  servoY.write(y);  
 }
 
 void setup() {
