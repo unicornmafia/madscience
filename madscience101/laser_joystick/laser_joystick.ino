@@ -24,6 +24,8 @@ move servos using joystick values.
 Servo servoX;  // create servo objects to control servos
 Servo servoY;  // create servo objects to control servos
 
+bool buttonState = true;
+
 // Structure example to receive data
 // Must match the sender structure
 typedef struct struct_message {
@@ -38,6 +40,18 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&myData, incomingData, sizeof(myData));
   int x = map(myData.x, 0, 4000, 180, 0);
   int y = map(myData.y, 0, 4000, 0, 180);
+  if (myData.button){
+    Serial.println("button click detected");
+    buttonState = !buttonState;
+    if (buttonState){
+      digitalWrite(LASER_POWER_PIN, HIGH); 
+      Serial.println("Turning laser on");
+    } else {
+      digitalWrite(LASER_POWER_PIN, LOW);
+      Serial.println("Turning laser off"); 
+    }
+    
+  }
   servoX.write(x);
   servoY.write(y);  
 }
