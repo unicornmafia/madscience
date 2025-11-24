@@ -1,8 +1,11 @@
-/* CatLaser MK IV
+/* Laser Joystick MK II
  by unicornmafia <https://github.com/unicornmafia>
  This code is in the public domain.
 
- modified 20 Jan 2024
+Receive joystick signals through ESP Now and 
+move servos using joystick values.
+
+ modified 21 Nov 2025
  by Thomas Marsh
 */
 

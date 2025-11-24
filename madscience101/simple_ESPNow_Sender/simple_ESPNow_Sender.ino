@@ -1,11 +1,11 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #define BUTTON_PIN 17 // GPIO17 pin connected to button
-#define JOYSTICK_X_PIN 36 // GPIO36 pin connected to x axis of joystick
-#define JOYSTICK_Y_PIN 39 // GPIO39 pin connected to y axis of joystick
+#define JOYSTICK_X_PIN 39 // GPIO36 pin connected to x axis of joystick
+#define JOYSTICK_Y_PIN 36 // GPIO39 pin connected to y axis of joystick
 
 
-uint8_t matrixAddress[] = {0x48, 0x27, 0xE2, 0x16, 0xCF, 0x24};
+uint8_t matrixAddress[] = {0x64, 0xE8, 0x33, 0x88, 0xC4, 0xBC};
 int button_state = 1;
 
 // Structure to send data
@@ -44,6 +44,9 @@ void setup() {
  
 void loop() {
   myData.button_state = !digitalRead(BUTTON_PIN);
+  Serial.print("button_state: ");
+  Serial.println(button_state);
+
   myData.x = analogRead(JOYSTICK_X_PIN);
   myData.y = analogRead(JOYSTICK_Y_PIN);
   // Send message via ESP-NOW
