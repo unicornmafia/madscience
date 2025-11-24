@@ -1,55 +1,52 @@
-/*
-  Thomas Marsh
-*/
 #include <esp_now.h>
 #include <WiFi.h>
+#define BUTTON_PIN 17 // GPIO17 pin connected to button
+#define JOYSTICK_X_PIN 36 // GPIO36 pin connected to x axis of joystick
+#define JOYSTICK_Y_PIN 39 // GPIO39 pin connected to y axis of joystick
 
-#define VRX_PIN  39 // ESP32 pin GPIO39 (ADC3) connected to VRX pin
-#define VRY_PIN  36 // ESP32 pin GPIO36 (ADC0) connected to VRY pin
-#define SW_PIN  17
-#define LED_PIN  16
 
-uint8_t thomasDemoMAC[] = {0x20, 0x6e, 0xf1, 0x6d, 0x1b, 0x14};
+uint8_t matrixAddress[] = {0x48, 0x27, 0xE2, 0x16, 0xCF, 0x24};
+int button_state = 1;
 
-// Structure example to send data
-// Must match the receiver structure
+// Structure to send data
 typedef struct struct_message {
   int x;
   int y;
-  bool button;
+  int button_state;
 } struct_message;
-
-// Create a struct_message called myData
 struct_message myData;
 
 esp_now_peer_info_t peerInfo;
-bool bSentCenter = false;
-
 
 void setup() {
   // Init Serial Monitor
   Serial.begin(115200);
-  // define LED pin
-  pinMode(LED_PIN, OUTPUT);
-  // define button for joystick switch 
-  pinMode(SW_PIN, INPUT_PULLUP);  // pullup because this is default high 
-                                  // pushing the button makes it go low
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
+
   // Init ESP-NOW
-  esp_now_init();
-  // Register peer
-  memcpy(peerInfo.peer_addr, thomasDemoMAC, sizeof(thomasDemoMAC));
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  // register peer MAC Address
+  memcpy(peerInfo.peer_addr, matrixAddress, 6);
+  
   // Add peer        
-  esp_now_add_peer(&peerInfo);
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
 }
  
 void loop() {
-  // get values from hardware
-  myData.button = !digitalRead(SW_PIN);  // we are using ! because by default when pressed, it goes low.
-  myData.x = analogRead(VRX_PIN); 
-  myData.y = analogRead(VRY_PIN);
-
-  esp_err_t result = esp_now_send(thomasDemoMAC, (uint8_t *) &myData, sizeof(myData));
-  delay(10);
+  myData.button_state = !digitalRead(BUTTON_PIN);
+  myData.x = analogRead(JOYSTICK_X_PIN);
+  myData.y = analogRead(JOYSTICK_Y_PIN);
+  // Send message via ESP-NOW
+  esp_err_t result = esp_now_send(matrixAddress, (uint8_t *) &myData, sizeof(myData));
+  delay(1);
 }
